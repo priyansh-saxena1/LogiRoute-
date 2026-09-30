@@ -27,14 +27,12 @@ export default function Itinerary({ plan, playhead, activeStop, onSelectStop }: 
     if (list && el) list.scrollTo({ top: Math.max(0, el.offsetTop - list.clientHeight / 3), behavior: 'smooth' })
   }, [activeStop, currentIdx, stops])
 
-  let lastDay = 0
   return (
     <ol ref={listRef} className="scroll-thin relative h-full overflow-y-auto px-4 py-3">
       {stops.map((stop, i) => {
         const meta = KIND[stop.type]
         const next = stops[i + 1]
-        const showDay = stop.day !== lastDay
-        lastDay = stop.day
+        const showDay = i === 0 || stops[i - 1].day !== stop.day
         const isCurrent = i === currentIdx
         const isActive = activeStop === stop.id
         const driveMin = next ? next.arrive_min - stop.depart_min : 0

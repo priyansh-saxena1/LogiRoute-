@@ -133,7 +133,9 @@ export default function App() {
 
   // A shared link plans itself on load.
   useEffect(() => {
-    if (sharedRequest) runPlan(formFromRequest(sharedRequest))
+    if (!sharedRequest) return
+    const timer = window.setTimeout(() => runPlan(formFromRequest(sharedRequest)), 0)
+    return () => window.clearTimeout(timer)
   }, [sharedRequest, runPlan])
 
   useEffect(() => save(DRIVER_KEY, driverOverrides), [driverOverrides])

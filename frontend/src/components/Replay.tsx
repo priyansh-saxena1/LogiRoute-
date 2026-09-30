@@ -55,7 +55,9 @@ export default function Replay({ plan, playhead, onPlayhead, playing, onPlaying,
   const total = plan.summary.trip_minutes
   const trackRef = useRef<HTMLDivElement>(null)
   const headRef = useRef(playhead)
-  headRef.current = playhead
+  useEffect(() => {
+    headRef.current = playhead
+  }, [playhead])
 
   // Playback loop.
   useEffect(() => {

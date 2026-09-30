@@ -32,10 +32,11 @@ export default function CycleInput({
   const pct = Math.min(100, (used / 70) * 100)
   const tone = over ? '#f43f5e' : used >= 60 ? '#f59e0b' : '#3b82f6'
 
-  const base = departure ? parseWall(departure) : new Date()
+  const base = departure ? parseWall(departure).getTime() : null
   const dayLabel = (i: number) => {
-    const d = new Date(base.getTime() - (i + 1) * 86_400_000)
-    return { weekday: WEEKDAY[d.getUTCDay()], date: d.getUTCDate() }
+    if (base == null) return { weekday: `D-${i + 1}`, date: '' }
+    const d = new Date(base - (i + 1) * 86_400_000)
+    return { weekday: WEEKDAY[d.getUTCDay()], date: String(d.getUTCDate()) }
   }
 
   return (

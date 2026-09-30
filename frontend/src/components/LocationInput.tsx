@@ -42,9 +42,9 @@ export default function LocationInput({
   const id = useId()
   const listId = `${id}-list`
   const [open, setOpen] = useState(false)
-  const [local, setLocal] = useState<PlaceSuggestion[]>([])
-  const [remote, setRemote] = useState<PlaceSuggestion[]>([])
-  const [remoteLoading, setRemoteLoading] = useState(false)
+  // Results remember which query they answer, so stale ones are never shown.
+  const [local, setLocal] = useState<{ q: string; items: PlaceSuggestion[] }>({ q: '', items: [] })
+  const [remote, setRemote] = useState<{ q: string; items: PlaceSuggestion[] }>({ q: '', items: [] })
   const [active, setActive] = useState(0)
   const [locating, setLocating] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
@@ -52,23 +52,19 @@ export default function LocationInput({
   const query = value.place ? '' : value.text.trim()
 
   useEffect(() => {
-    if (query.length < 2) {
-      setLocal([])
-      setRemote([])
-      setRemoteLoading(false)
-      return
-    }
+    if (query.length < 2) return
     const controller = new AbortController()
     const localTimer = window.setTimeout(() => {
-      api.searchPlaces(query, 'local', controller.signal).then(setLocal).catch(() => {})
+      api
+        .searchPlaces(query, 'local', controller.signal)
+        .then((items) => setLocal({ q: query, items }))
+        .catch(() => {})
     }, 60)
     const remoteTimer = window.setTimeout(() => {
-      setRemoteLoading(true)
       api
         .searchPlaces(query, 'remote', controller.signal)
-        .then(setRemote)
-        .catch(() => {})
-        .finally(() => !controller.signal.aborted && setRemoteLoading(false))
+        .then((items) => setRemote({ q: query, items }))
+        .catch(() => !controller.signal.aborted && setRemote({ q: query, items: [] }))
     }, 320)
     return () => {
       controller.abort()
@@ -77,16 +73,16 @@ export default function LocationInput({
     }
   }, [query])
 
-  const suggestions = merge(local, remote)
-  const showList = open && query.length >= 2 && (suggestions.length > 0 || remoteLoading)
-
-  useEffect(() => setActive(0), [query])
+  const searching = query.length >= 2
+  const suggestions = searching
+    ? merge(local.q === query ? local.items : [], remote.q === query ? remote.items : [])
+    : []
+  const remoteLoading = searching && remote.q !== query
+  const showList = open && searching && (suggestions.length > 0 || remoteLoading)
 
   function pick(s: PlaceSuggestion) {
     onChange({ text: s.label, place: s })
     setOpen(false)
-    setRemote([])
-    setLocal([])
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -176,6 +172,7 @@ export default function LocationInput({
           value={value.text}
           onChange={(e) => {
             onChange({ text: e.target.value, place: null })
+            setActive(0)
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
