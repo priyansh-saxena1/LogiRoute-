@@ -35,6 +35,10 @@ ON_VERCEL = os.environ.get("VERCEL") == "1"
 DEBUG = env_bool("DJANGO_DEBUG", default=not ON_VERCEL)
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.vercel.app")
+# Vercel exposes the deployment's own hostnames (including custom production domains).
+for _var in ("VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL"):
+    if os.environ.get(_var):
+        ALLOWED_HOSTS.append(os.environ[_var])
 if DEBUG:
     ALLOWED_HOSTS.append("*")
 
