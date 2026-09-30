@@ -1,0 +1,227 @@
+@import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
+
+@theme {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --color-ink-950: #060a13;
+  --color-ink-900: #0b1220;
+  --color-ink-850: #0f1829;
+  --color-ink-800: #141f35;
+  --color-ink-700: #1d2a45;
+  --color-ink-600: #2b3a5a;
+  --color-ink-500: #4a5b80;
+  --color-ink-400: #7483a4;
+  --color-ink-300: #a5b1c9;
+  --color-ink-200: #cdd5e3;
+  --color-ink-100: #e7ebf3;
+
+  --color-canvas: #f3f5f9;
+  --color-line: #e3e7ef;
+
+  --color-duty-off: #94a3b8;
+  --color-duty-sb: #8b5cf6;
+  --color-duty-d: #10b981;
+  --color-duty-on: #f59e0b;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 16px -4px rgb(15 23 42 / 0.06);
+  --shadow-float: 0 10px 40px -8px rgb(15 23 42 / 0.25), 0 2px 6px rgb(15 23 42 / 0.08);
+
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pulse-ring: pulse-ring 1.8s ease-out infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.7;
+    }
+    100% {
+      transform: scale(2.2);
+      opacity: 0;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas font-sans text-ink-900;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  ::selection {
+    background: rgb(59 130 246 / 0.25);
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-white shadow-card;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.08em] text-ink-400 uppercase;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .btn-ghost,
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply border border-line bg-white text-ink-700 hover:border-ink-200 hover:bg-ink-100/50;
+  }
+  .btn-primary {
+    @apply bg-blue-600 text-white shadow-sm hover:bg-blue-500;
+  }
+}
+
+/* Dark sidebar range input */
+.range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: white;
+  border: 4px solid #3b82f6;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  cursor: grab;
+}
+.range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: white;
+  border: 4px solid #3b82f6;
+  cursor: grab;
+}
+
+@keyframes pulse-ring-kf {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+.pulse-ring {
+  animation: pulse-ring-kf 1.8s ease-out infinite;
+}
+
+/* Leaflet polish */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #eef1f5;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  box-shadow: var(--shadow-float);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.leaflet-control-attribution {
+  font-size: 10px;
+  background: rgb(255 255 255 / 0.75) !important;
+  border-top-left-radius: 8px;
+}
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: var(--shadow-card) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.leaflet-control-zoom a {
+  color: var(--color-ink-700) !important;
+}
+.stop-pin {
+  background: transparent;
+  border: none;
+}
+
+/* Thin scrollbars inside panels */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #cdd5e3 transparent;
+}
+.scroll-dark {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3a5a transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Print: only the daily log sheets, one per landscape page ---- */
+@media print {
+  @page {
+    size: letter landscape;
+    margin: 0.35in;
+  }
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-area {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .log-sheet {
+    break-after: page;
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .log-sheet:last-child {
+    break-after: auto;
+  }
+}
+.print-only {
+  display: none;
+}
