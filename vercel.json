@@ -8,7 +8,7 @@
     "api/index.py": {
       "maxDuration": 60,
       "memory": 1024,
-      "includeFiles": "backend/{config,planner}/**"
+      "includeFiles": "backend/**"
     }
   },
   "rewrites": [
