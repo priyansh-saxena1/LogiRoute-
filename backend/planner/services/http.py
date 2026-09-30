@@ -15,7 +15,9 @@ class UpstreamError(RuntimeError):
 @lru_cache(maxsize=1)
 def session() -> requests.Session:
     s = requests.Session()
-    retry = Retry(total=1, backoff_factor=0.2, status_forcelist=(429, 500, 502, 503, 504),
+    # Retry quick failures (connect errors, 429/5xx) once; never re-wait on a slow read —
+    # callers have their own fallbacks and a serverless request budget to respect.
+    retry = Retry(total=1, read=0, backoff_factor=0.2, status_forcelist=(429, 500, 502, 503, 504),
                   allowed_methods=("GET",))
     adapter = HTTPAdapter(max_retries=retry, pool_connections=8, pool_maxsize=8)
     s.mount("https://", adapter)

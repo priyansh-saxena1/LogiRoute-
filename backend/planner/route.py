@@ -71,16 +71,21 @@ class RouteLeg:
         return interpolate(self.coords[i], self.coords[i + 1], frac)
 
     def simplified(self, tolerance_deg: float = 0.0015, max_points: int = 1500) -> list[tuple[float, float, float]]:
-        """Display geometry: [(lat, lon, miles_from_leg_start), ...]."""
+        """Display geometry: [(lat, lon, miles_from_leg_start), ...] (memoised; legs are cached)."""
+        cache_key = f"_display:{tolerance_deg}:{max_points}"
+        if cache_key in self.meta:
+            return self.meta[cache_key]
         tol = tolerance_deg
         idx = simplify_indices(self.coords, tol)
         while len(idx) > max_points:
             tol *= 1.6
             idx = simplify_indices(self.coords, tol)
-        return [
+        display = [
             (round(self.coords[i][0], 5), round(self.coords[i][1], 5), round(self.cum_m[i] / METERS_PER_MILE, 3))
             for i in idx
         ]
+        self.meta[cache_key] = display
+        return display
 
     # --- constructors -----------------------------------------------------
     @classmethod

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 from django.conf import settings
 from django.core.cache import cache
@@ -15,6 +15,12 @@ from .http import UpstreamError, get_json
 log = logging.getLogger(__name__)
 
 SAME_PLACE_M = 150.0
+# Public OSRM servers occasionally stall. If the primary hasn't answered after
+# this long, the same request is raced against the mirror (a "hedged" request).
+HEDGE_AFTER_S = 2.5
+OSRM_TIMEOUT_S = 9.0
+
+_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="osrm")
 
 
 def _osrm_leg(base: str, a: LatLon, b: LatLon) -> RouteLeg:
@@ -27,6 +33,7 @@ def _osrm_leg(base: str, a: LatLon, b: LatLon) -> RouteLeg:
             "annotations": "distance,duration",
             "steps": "false",
         },
+        timeout=OSRM_TIMEOUT_S,
     )
     if not isinstance(data, dict) or data.get("code") != "Ok" or not data.get("routes"):
         raise UpstreamError(f"OSRM {base}: {data.get('code') if isinstance(data, dict) else 'bad payload'}")
@@ -44,8 +51,36 @@ def _osrm_leg(base: str, a: LatLon, b: LatLon) -> RouteLeg:
         total_m = sum(seg_m) or 1.0
         seg_s = [leg["duration"] * d / total_m for d in seg_m]
     result = RouteLeg.from_segments(points, seg_m, seg_s, source="osrm")
-    result.meta = {"engine": base, "car_minutes": round(route["duration"] / 60, 1)}
+    result.meta.update({"engine": base, "car_minutes": round(route["duration"] / 60, 1)})
     return result
+
+
+def _hedged_osrm(a: LatLon, b: LatLon) -> RouteLeg | None:
+    """First successful answer from the OSRM servers, starting the backups only when needed."""
+    servers = list(settings.LOGIROUTE["OSRM_URLS"])
+    pending = {_POOL.submit(_osrm_leg, servers[0], a, b): servers[0]}
+    backups = servers[1:]
+    first_wait = HEDGE_AFTER_S
+    while pending:
+        done, _ = wait(pending, timeout=first_wait, return_when=FIRST_COMPLETED)
+        first_wait = None
+        if not done:
+            # Primary is slow: race the mirrors too.
+            for base in backups:
+                pending[_POOL.submit(_osrm_leg, base, a, b)] = base
+            backups = []
+            continue
+        for future in done:
+            base = pending.pop(future)
+            try:
+                return future.result()
+            except (UpstreamError, KeyError, IndexError, TypeError) as exc:
+                log.warning("OSRM failed on %s: %s", base, exc)
+        if backups and not pending:
+            for base in backups:
+                pending[_POOL.submit(_osrm_leg, base, a, b)] = base
+            backups = []
+    return None
 
 
 def route_leg(a: LatLon, b: LatLon) -> tuple[RouteLeg, str | None]:
@@ -58,15 +93,10 @@ def route_leg(a: LatLon, b: LatLon) -> tuple[RouteLeg, str | None]:
     if cached is not None:
         return cached, None
 
-    errors = []
-    for base in settings.LOGIROUTE["OSRM_URLS"]:
-        try:
-            leg = _osrm_leg(base, a, b)
-            cache.set(key, leg)
-            return leg, None
-        except (UpstreamError, KeyError, IndexError, TypeError) as exc:
-            errors.append(str(exc))
-            log.warning("OSRM failed on %s: %s", base, exc)
+    leg = _hedged_osrm(a, b)
+    if leg is not None:
+        cache.set(key, leg)
+        return leg, None
     leg = RouteLeg.estimate(a, b)
     return leg, (
         "Road routing is temporarily unavailable, so this leg uses a straight-line estimate "
@@ -76,7 +106,7 @@ def route_leg(a: LatLon, b: LatLon) -> tuple[RouteLeg, str | None]:
 
 def route_trip(points: list[LatLon]) -> tuple[list[RouteLeg], list[str]]:
     pairs = list(zip(points, points[1:]))
-    with ThreadPoolExecutor(max_workers=len(pairs)) as pool:
+    with ThreadPoolExecutor(max_workers=len(pairs), thread_name_prefix="leg") as pool:
         results = list(pool.map(lambda p: route_leg(*p), pairs))
     legs = [leg for leg, _ in results]
     warnings = sorted({w for _, w in results if w})
